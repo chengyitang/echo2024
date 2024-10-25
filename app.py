@@ -1,6 +1,4 @@
-from langchain_ollama import OllamaLLM # type: ignore
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
+from langchain_ollama import OllamaLLM
 from flask import Flask, request, render_template, jsonify
 import logging
 import re
@@ -37,44 +35,39 @@ def extract_text_from_pdf(file_path):
     
 # Define prompts for different output types
 OUTPUT_PROMPTS = {
-    'qa': "Generate a Q&A format response for the following content: {content}",
-    'transcripts': "Generate a detailed transcript from the following content: {content}",
-    'notes': "Generate concise notes highlighting key points from the following content: {content}",
-    'summary': "Generate a comprehensive summary of the following content: {content}"
+    'qa': "Create 10 multiple-choice and based on the key concepts discussed in the lecture or meeting. Provide correct answers and brief explanations for each. Return in the following format: Q1: the question A1: the answer. Following content: ",
+    'transcripts': "Generate a detailed, well-structured transcript from the following content: ",
+    'notes': "Based on the provided lecture or meeting transcript, summarize the theme and ten key points (bullet points), create a concise set of notes for easy review. Following content:",
+    'summary': "Generate a comprehensive summary of the following content:"
 }
 
-# # Define a function to format text by converting Markdown bold syntax to HTML strong tags
-# def format_output(text):
-#     """Convert Markdown bold syntax to HTML strong tags."""
-#     return re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
-
-# Define chatbot initialization
 def initialize_llama():
     try:
-        llama_model = OllamaLLM(model="llama3.2:1b")
-        format_output = StrOutputParser()
-        return llama_model, format_output
+        # Initialize the LLaMA model directly
+        llama_model = OllamaLLM(model="llama3.2:1b") # Change your model version here
+        return llama_model
     except Exception as e:
         logging.error(f"Failed to initialize LLM: {e}")
         raise
 
-def process_with_llm(content, output_types):
-    llama_model, output_parser = initialize_llama()
+llama_model = initialize_llama()
+
+def prompt_ollama(content, output_types):
     results = {}
-    
+
     for output_type in output_types:
+        predefined_prompt = OUTPUT_PROMPTS[output_type]
         if output_type in OUTPUT_PROMPTS:
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", "You are a professional content analyzer"),
-                ("user", OUTPUT_PROMPTS[output_type])
-            ])
-            chain = prompt | llama_model | output_parser
-            try:
-                response = chain.invoke({'content': content})
-                results[output_type] = response
-            except Exception as e:
-                logging.error(f"Error processing {output_type}: {e}")
-                results[output_type] = f"Error generating {output_type}"
+            prompt = f"{predefined_prompt} {content}"
+
+        try:
+            response = llama_model.invoke(prompt)
+            #print('predefined_prompt:', predefined_prompt, "\n")
+            #print('response:', response)
+            results[output_type] = response
+        except Exception as e:
+            logging.error(f"Error invoking LLM: {e}")
+            results[output_type] = "None"
     
     return results
 
@@ -106,7 +99,7 @@ def main():
                 return jsonify({'error': 'File type not yet supported'})
             
             # Process content with LLM
-            results = process_with_llm(content, output_types)
+            results = prompt_ollama(content, output_types)
             
             # Clean up uploaded file
             os.remove(filepath)
