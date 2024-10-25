@@ -18,9 +18,11 @@ ALLOWED_EXTENSIONS = {'pdf', 'mp3', 'mp4'}
 # Ensure upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+# Check if the file extension is allowed
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# Extract text from a PDF file
 def extract_text_from_pdf(file_path):
     try:
         with open(file_path, 'rb') as file:
@@ -35,12 +37,13 @@ def extract_text_from_pdf(file_path):
     
 # Define prompts for different output types
 OUTPUT_PROMPTS = {
-    'qa': "Create 10 multiple-choice and based on the key concepts discussed in the lecture or meeting. Provide correct answers and brief explanations for each. Return in the following format: Q1: the question A1: the answer. Following content: ",
+    'qa': "Create 10 multiple-choice and based on the key concepts discussed in the lecture or meeting. Provide correct answers including brief explanations for each question. Return in the following format: Q<n>: the question\n A<n>: the answer\n (<n> is the question number)\n Following content: ",
     'transcripts': "Generate a detailed, well-structured transcript from the following content: ",
     'notes': "Based on the provided lecture or meeting transcript, summarize the theme and ten key points (bullet points), create a concise set of notes for easy review. Following content:",
     'summary': "Generate a comprehensive summary of the following content:"
 }
 
+# Initialize the LLaMA model
 def initialize_llama():
     try:
         # Initialize the LLaMA model directly
@@ -52,6 +55,7 @@ def initialize_llama():
 
 llama_model = initialize_llama()
 
+# Prompt the LLaMA model
 def prompt_ollama(content, output_types):
     results = {}
 
@@ -71,6 +75,48 @@ def prompt_ollama(content, output_types):
     
     return results
 
+def extract_qa_pairs(text):
+    """
+    Extract question-answer pairs from text where questions are marked with Q1, Q2, etc.
+    and answers are marked with A1, A2, etc.
+    
+    Args:
+        text (str): Input text containing question-answer pairs
+        
+    Returns:
+        list: List of dictionaries containing question-answer pairs
+    """
+    # Split the text into individual QA pairs
+    qa_pairs = []
+    
+    # Find all questions using regex
+    questions = re.findall(r'Q\d+:\s*(.*?)\s*(?=A\d+:|$)', text)
+    
+    # Find all answers using regex
+    answers = re.findall(r'A\d+:\s*(.*?)\s*(?=Q\d+:|$)', text)
+    
+    # Combine questions and answers into pairs
+    for i in range(len(questions)):
+        qa_pairs.append({
+            'question': questions[i].strip(),
+            'answer': answers[i].strip()
+        })
+
+    ret = []
+
+    # Print the extracted pairs in a formatted way
+    for i, pair in enumerate(qa_pairs, 1):
+        # print(f"Q{i}: {pair['question']}")
+        # print(f"A: {pair['answer']}")
+
+        ret.append({
+            'question': pair['question'],
+            'answer': pair['answer']
+        })
+    
+    return ret
+
+# Main route for the Flask app
 @app.route('/', methods=['GET', 'POST'])
 def main():
     if request.method == 'POST':
@@ -100,6 +146,8 @@ def main():
             
             # Process content with LLM
             results = prompt_ollama(content, output_types)
+
+            print(extract_qa_pairs(results['qa']))
             
             # Clean up uploaded file
             os.remove(filepath)
