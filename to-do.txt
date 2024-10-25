@@ -1,0 +1,16 @@
+Frontend {
+    - Improve the UI/UX
+}
+
+Backend {
+    - Output Formatting     
+    - Mp3 and Mp4 support   
+    - PDF support           DONE
+    - Deployment            
+}
+
+Llama Research {
+    - Llama 3.2 70B installation
+    - Speed up the inference time (GPU Usage)
+    - Prompt Engineering  
+}

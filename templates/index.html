@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECHO - AI Content Generator</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        .output-section {
+            display: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto">
+            <!-- Header -->
+            <div class="mb-8">
+                <h1 class="text-6xl font-bold mb-4">ECHO</h1>
+                <h2 class="text-2xl font-bold mb-1">Efficient Capture and Helpful Output</h2>
+                <p class="text-gray-400">Boost your efficiency by LLM (Large Language Model) and AI.</p>
+            </div>
+
+            <!-- Main Content -->
+            <div class="bg-gray-800 rounded-lg p-6 mb-8">
+                <form id="processForm" class="space-y-6">
+                    <!-- Output Type Selection -->
+                    <div>
+                        <h2 class="text-xl mb-4">Select the content you want to generate</h2>
+                        <div class="space-y-2">
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" name="output_types" value="qa" class="form-checkbox">
+                                <span>Q & A</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" name="output_types" value="transcripts" class="form-checkbox">
+                                <span>Transcripts</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" name="output_types" value="notes" class="form-checkbox">
+                                <span>Notes</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" name="output_types" value="summary" class="form-checkbox">
+                                <span>Summary</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- File Upload -->
+                    <div>
+                        <h2 class="text-xl mb-4">Select a media file</h2>
+                        <p class="text-sm text-gray-400 mb-2">Supported types: .mp3 and .mp4, maximum 1GB</p>
+                        <input type="file" name="file" accept=".pdf,.mp3,.mp4" class="w-full p-2 border border-gray-600 rounded">
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                        Generate a response
+                    </button>
+                </form>
+            </div>
+
+            <!-- Results Sections -->
+            <div id="results" class="space-y-6">
+                <div id="qa-result" class="output-section bg-gray-800 rounded-lg p-6">
+                    <h3 class="text-xl font-bold mb-4">Q & A</h3>
+                    <div class="content"></div>
+                </div>
+                <div id="transcripts-result" class="output-section bg-gray-800 rounded-lg p-6">
+                    <h3 class="text-xl font-bold mb-4">Transcripts</h3>
+                    <div class="content"></div>
+                </div>
+                <div id="notes-result" class="output-section bg-gray-800 rounded-lg p-6">
+                    <h3 class="text-xl font-bold mb-4">Notes</h3>
+                    <div class="content"></div>
+                </div>
+                <div id="summary-result" class="output-section bg-gray-800 rounded-lg p-6">
+                    <h3 class="text-xl font-bold mb-4">Summary</h3>
+                    <div class="content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('processForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const outputTypes = formData.getAll('output_types');
+            
+            if (outputTypes.length === 0) {
+                alert('Please select at least one output type');
+                return;
+            }
+            
+            if (!formData.get('file')) {
+                alert('Please select a file');
+                return;
+            }
+
+            // Hide all output sections
+            document.querySelectorAll('.output-section').forEach(section => {
+                section.style.display = 'none';
+            });
+
+            try {
+                const response = await fetch('/', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const results = await response.json();
+                
+                if (results.error) {
+                    alert(results.error);
+                    return;
+                }
+
+                // Display results
+                for (const [type, content] of Object.entries(results)) {
+                    const section = document.getElementById(`${type}-result`);
+                    if (section) {
+                        section.querySelector('.content').textContent = content;
+                        section.style.display = 'block';
+                    }
+                }
+            } catch (error) {
+                alert('An error occurred while processing your request');
+                console.error(error);
+            }
+        });
+    </script>
+</body>
+</html>
