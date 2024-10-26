@@ -53,24 +53,18 @@ def initialize_llama():
 llama_model = initialize_llama()
 
 # Prompt the LLaMA model
-def prompt_ollama(content, output_types):
-    results = {}
+def prompt_ollama(content, output_type):
 
-    for output_type in output_types:
-        predefined_prompt = OUTPUT_PROMPTS[output_type]
-        if output_type in OUTPUT_PROMPTS:
-            prompt = f"{predefined_prompt} {content}"
+    predefined_prompt = OUTPUT_PROMPTS[output_type]
+    if output_type in OUTPUT_PROMPTS:
+        prompt = f"{predefined_prompt} {content}"
+    try:
+        response = llama_model.invoke(prompt)
 
-        try:
-            response = llama_model.invoke(prompt)
-            #print('predefined_prompt:', predefined_prompt, "\n")
-            #print('response:', response)
-            results[output_type] = response
-        except Exception as e:
-            logging.error(f"Error invoking LLM: {e}")
-            results[output_type] = "None"
-    
-    return results
+    except Exception as e:
+        logging.error(f"Error invoking LLM: {e}")
+
+    return response
 
 def extract_qa_pairs(text):
     """
@@ -151,14 +145,16 @@ def process_content():
     if not content:
         return jsonify({'error': 'No content provided'}), 400
 
-    # Process content with LLM using default output types
-    results = prompt_ollama(content, data_types)
+    results = []
 
-    # only Q&A need special formatting
-    # if data_types == ['qa']:
-    #     results = extract_qa_pairs(results)
-    #     print("qa_pairs:", results)
-    ''' How frontend is going to use this? '''
+    for data_type in data_types:
+        model_result = prompt_ollama(content, data_type)
+        if data_type == 'qa':
+            results.append(extract_qa_pairs(model_result))
+        else:
+            results.append(model_result)
+
+    print("results:", results)
 
     return jsonify(results), 200
 
