@@ -1,5 +1,6 @@
 from langchain_ollama import OllamaLLM
 from flask import Flask, request, render_template, jsonify
+from flask_cors import CORS
 import logging
 import re
 import PyPDF2
@@ -12,6 +13,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 # Create Flask app
 app = Flask(__name__)
+CORS(app)
 app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024  # 1GB max file size
 app.config['UPLOAD_FOLDER'] = 'uploads'
 ALLOWED_EXTENSIONS = {'pdf', 'mp3', 'mp4'}
@@ -146,61 +148,52 @@ def extract_qa_pairs(text):
     
     return ret
 
-@app.route('/to_text', methods=['GET', 'POST'])
-def to_text():
-    if request.method == 'POST':
-        output_types = request.form.getlist('output_types')
-        
-        # Check if a file was uploaded
-        if 'file' not in request.files:
-            return jsonify({'error': 'No file uploaded'})
-        
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({'error': 'No file selected'})
-        return  jsonify('text', to_text.to_text(file))
+@app.route('/api/extract-text', methods=['POST'])
+def extract_text_route():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+
+        # Extract text
+        text_content = to_text.to_text(filepath)
+
+        # Clean up uploaded and temporary files
+        os.remove(filepath)
+        temp_audio_path = os.path.join(app.config['UPLOAD_FOLDER'], 'audio.wav')
+        if os.path.exists(temp_audio_path):
+            os.remove(temp_audio_path)
+
+        if text_content is None:
+            return jsonify({'error': 'Failed to extract text from the file'}), 500
+
+        return jsonify({'text': text_content}), 200
+
+    return jsonify({'error': 'Invalid file type'}), 400
+
             
 # Main route for the Flask app
-@app.route('/generate', methods=['GET', 'POST'])
-def main():
-    if request.method == 'POST':
-        output_types = request.form.getlist('output_types')
-        
-        # Check if a file was uploaded
-        if 'file' not in request.files:
-            return jsonify({'error': 'No file uploaded'})
-        
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({'error': 'No file selected'})
-        
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
-            
-            # Extract content based on file type
-            if filename.endswith('.pdf'):
-                content = extract_text_from_pdf(filepath)
-                if content is None:
-                    return jsonify({'error': 'Failed to extract text from PDF'})
-            else:
-                # Handle other file types (mp3, mp4) here
-                return jsonify({'error': 'File type not yet supported'})
-            
-            # Process content with LLM
-            results = prompt_ollama(content, output_types)
+@app.route('/api/process-content', methods=['POST'])
+def process_content():
+    data = request.get_json()
+    content = data.get('content', '')
+    data_types = data.get('data_types', [])
 
-            print(extract_qa_pairs(results['qa']))
-            
-            # Clean up uploaded file
-            os.remove(filepath)
-            
-            return jsonify(results)
-        
-        return jsonify({'error': 'Invalid file type'})
-    
-    return render_template('index.html')
+    if not content:
+        return jsonify({'error': 'No content provided'}), 400
+    print(data)
+
+    # Process content with LLM using default output types
+    results = prompt_ollama(content, data_types)
+
+    return jsonify(results), 200
 
 if __name__ == '__main__':
     app.run(debug=True)

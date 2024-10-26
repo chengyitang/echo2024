@@ -1,42 +1,49 @@
+# to_text.py
+
 import subprocess
 import ffmpeg
 import speech_recognition as sr
 from pydub import AudioSegment
+import os
 
-def to_text(file_input):
-    # use SpeechRecognition to put audio to text
-    def audio_to_text(file_input):
-        recognizer = sr.Recognizer()
-        with file_input as source:
-            audio_data = recognizer.record(source)
-            text = recognizer.recognize_google(audio_data)
-        return text
+def to_text(file_input_path):
+    # Check the file extension
+    file_extension = os.path.splitext(file_input_path)[1].lower()
+    
+    if file_extension == ".mp3":
+        # Convert MP3 to WAV
+        wav_path = os.path.join('uploads', 'audio.wav')
+        song = AudioSegment.from_mp3(file_input_path)
+        song.export(wav_path, format="wav")
+        return audio_to_text(wav_path)
 
-    # if the file has an ".mp3" extension
-    if file_input.lower().endswith(".mp3"):
-        # tranfer mp3 to wav
-        def _mp3_to_wav(mp3_input, wav_path):
-            song = AudioSegment.from_mp3(mp3_input)
-            song.export(wav_path, format="wav")
+    elif file_extension == ".mp4":
+        # Extract audio from MP4
+        wav_path = os.path.join('uploads', 'audio.wav')
+        ffmpeg.input(file_input_path).output(wav_path).run()
+        return audio_to_text(wav_path)
 
-        _mp3_to_wav(file_input, "audio.wav")
-        return audio_to_text('audio.wav')
+    elif file_extension == ".pdf":
+        # Extract text from PDF
+        return extract_text_from_pdf(file_input_path)
 
-    #if the file has an ".mp4" extension
-    elif file_input.lower().endswith(".mp4"):
-        ffmpeg.input(file_input).output('audio.wav').run()   # video to audio
-        return audio_to_text('audio.wav')
-        
-    elif file_input.lower().endswith(".pdf"):
-        # extract text from pdf
-        def extract_text_from_pdf(pdf_path):
-            text = ''
-            try:
-                text = subprocess.check_output(['pdftotext', pdf_path, '-']).decode('utf-8')
-            except Exception as e:
-                print(f'Error extracting text from PDF: {e}')
-            return text
+    else:
+        return None
 
-        text = extract_text_from_pdf(file_input)
-        return text
+def audio_to_text(audio_file_path):
+    recognizer = sr.Recognizer()
+    with sr.AudioFile(audio_file_path) as source:
+        audio_data = recognizer.record(source)
+        text = recognizer.recognize_google(audio_data)
+    return text
 
+def extract_text_from_pdf(pdf_path):
+    text = ''
+    try:
+        with open(pdf_path, 'rb') as file:
+            pdf_reader = PyPDF2.PdfReader(file)
+            for page in pdf_reader.pages:
+                text += page.extract_text() + "\n"
+    except Exception as e:
+        print(f'Error extracting text from PDF: {e}')
+    return text
