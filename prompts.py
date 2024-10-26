@@ -1,6 +1,6 @@
 # Define prompts for different output types
 OUTPUT_PROMPTS = {
-    'qa': "Create 10 multiple-choice and based on the key concepts discussed in the lecture or meeting. Provide correct answers including brief explanations for each question. Return in the following format: Q<n>: the question\n A<n>: the answer\n (<n> is the question number)\n Following content: ",
+    'qa': "Create 10 questions based on the key concepts discussed in the lecture or meeting. Provide correct answers including brief explanations for each question. Return in the following bullet pointsformat: Q<n>: the question\n A<n>: the answer\n (<n> is the question number)\n Following content: ",
     'transcripts': "Generate a detailed, well-structured transcript from the following content: ",
     'notes': 
     """

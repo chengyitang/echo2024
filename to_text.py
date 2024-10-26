@@ -45,6 +45,8 @@ def extract_text_from_pdf(pdf_path):
             pdf_reader = PyPDF2.PdfReader(file)
             for page in pdf_reader.pages:
                 text += page.extract_text() + "\n"
+
+            cleaned_text = ' '.join(text.split())
     except Exception as e:
         print(f'Error extracting text from PDF: {e}')
-    return text
+    return cleaned_text

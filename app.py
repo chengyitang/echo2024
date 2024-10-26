@@ -139,7 +139,8 @@ def process_content():
 
     for data_type in data_types:
         model_result = prompt_ollama(content, data_type)
-        #print("model_result:", model_result)
+        print("data_type:", data_type)
+        print("model_result:", model_result)
         if data_type == 'qa':
             results[data_type] = extract_qa_pairs(model_result)
         else:
