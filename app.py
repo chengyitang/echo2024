@@ -7,6 +7,7 @@ import PyPDF2
 import os
 from werkzeug.utils import secure_filename
 import to_text
+from prompts import OUTPUT_PROMPTS
 
 # Setup basic logging
 logging.basicConfig(level=logging.DEBUG)
@@ -37,49 +38,13 @@ def extract_text_from_pdf(file_path):
     except Exception as e:
         logging.error(f"Error extracting text from PDF: {e}")
         return None
-    
-# Define prompts for different output types
-OUTPUT_PROMPTS = {
-    'qa': "Create 10 multiple-choice and based on the key concepts discussed in the lecture or meeting. Provide correct answers including brief explanations for each question. Return in the following format: Q<n>: the question\n A<n>: the answer\n (<n> is the question number)\n Following content: ",
-    'transcripts': "Generate a detailed, well-structured transcript from the following content: ",
-    'notes': 
-    """
-    Based on the provided lecture or meeting transcript, summarize the theme and ten key points, create a concise set of notes for easy review.\n
-    Each note Output format are as follows:
-    Key word1: explanation and summary,
-    Key word2: explanation and summary,
-    ……,
-    Key word10: explanation and summary
 
-    """,
-    'summary': "Generate a comprehensive summary of the following content:",
-    'learing_objectives': """ 
-    From the provided lecture transcript, identify the primary 10 learning objectives. Adhere strictly to the format given where the response should contain no more than 1000 characters in total. List each objective as follows:
-        Objective 1,
-        Objective 2,
-        …,
-        Objective 10
-        Do not provide explanations, interpretations, or any output beyond this format.
-    """,
-    'Action_items':"""
-    Generate 8 action items based on the discussion in the meeting.If possible, list them in order by considering both importance and urgency. Include the task, responsible person, and deadlines if mentioned as the following format:
-        1. Task:,
-        Responsible Person:,
-        Deadline
-        2. Task:,
-        Responsible Person:,
-        Deadline
-        etc.
-    """,
-    
-    
-}
 
 # Initialize the LLaMA model
 def initialize_llama():
     try:
         # Initialize the LLaMA model directly
-        llama_model = OllamaLLM(model="llama3.1:8b") # Change your model version here
+        llama_model = OllamaLLM(model="llama3.2:1b") # Change your model version here
         return llama_model
     except Exception as e:
         logging.error(f"Failed to initialize LLM: {e}")
@@ -123,7 +88,7 @@ def extract_qa_pairs(text):
     
     # Find all questions using regex
     questions = re.findall(r'Q\d+:\s*(.*?)\s*(?=A\d+:|$)', text)
-    
+
     # Find all answers using regex
     answers = re.findall(r'A\d+:\s*(.*?)\s*(?=Q\d+:|$)', text)
     
@@ -134,13 +99,9 @@ def extract_qa_pairs(text):
             'answer': answers[i].strip()
         })
 
+    # Desired output format
     ret = []
-
-    # Print the extracted pairs in a formatted way
     for i, pair in enumerate(qa_pairs, 1):
-        # print(f"Q{i}: {pair['question']}")
-        # print(f"A: {pair['answer']}")
-
         ret.append({
             'question': pair['question'],
             'answer': pair['answer']
@@ -158,15 +119,16 @@ def extract_text_route():
         return jsonify({'error': 'No file selected'}), 400
 
     if file and allowed_file(file.filename):
+
+        # Save the file to the upload folder
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
-        # Extract text
+        # call to_text.py to extract text for different file types
         text_content = to_text.to_text(filepath)
-
-        # Clean up uploaded and temporary files
         os.remove(filepath)
+
         temp_audio_path = os.path.join(app.config['UPLOAD_FOLDER'], 'audio.wav')
         if os.path.exists(temp_audio_path):
             os.remove(temp_audio_path)
@@ -188,10 +150,15 @@ def process_content():
 
     if not content:
         return jsonify({'error': 'No content provided'}), 400
-    print(data)
 
     # Process content with LLM using default output types
     results = prompt_ollama(content, data_types)
+
+    # only Q&A need special formatting
+    # if data_types == ['qa']:
+    #     results = extract_qa_pairs(results)
+    #     print("qa_pairs:", results)
+    ''' How frontend is going to use this? '''
 
     return jsonify(results), 200
 

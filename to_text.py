@@ -5,6 +5,7 @@ import ffmpeg
 import speech_recognition as sr
 from pydub import AudioSegment
 import os
+import PyPDF2
 
 def to_text(file_input_path):
     # Check the file extension
