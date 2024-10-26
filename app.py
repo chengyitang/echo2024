@@ -56,27 +56,17 @@ llama_model = initialize_llama()
 def prompt_ollama(content, output_type):
 
     predefined_prompt = OUTPUT_PROMPTS[output_type]
+    response = None
     if output_type in OUTPUT_PROMPTS:
         prompt = f"{predefined_prompt} {content}"
     try:
         response = llama_model.invoke(prompt)
-
     except Exception as e:
         logging.error(f"Error invoking LLM: {e}")
 
     return response
 
 def extract_qa_pairs(text):
-    """
-    Extract question-answer pairs from text where questions are marked with Q1, Q2, etc.
-    and answers are marked with A1, A2, etc.
-    
-    Args:
-        text (str): Input text containing question-answer pairs
-        
-    Returns:
-        list: List of dictionaries containing question-answer pairs
-    """
     # Split the text into individual QA pairs
     qa_pairs = []
     
@@ -145,16 +135,17 @@ def process_content():
     if not content:
         return jsonify({'error': 'No content provided'}), 400
 
-    results = []
+    results = {}
 
     for data_type in data_types:
         model_result = prompt_ollama(content, data_type)
+        #print("model_result:", model_result)
         if data_type == 'qa':
-            results.append(extract_qa_pairs(model_result))
+            results[data_type] = extract_qa_pairs(model_result)
         else:
-            results.append(model_result)
+            results[data_type] = model_result
 
-    print("results:", results)
+    #print("results:", results)
 
     return jsonify(results), 200
 
